@@ -1,0 +1,7 @@
+name: r_env_merge
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - r-base=4.3.0
+  - r-tidyverse
