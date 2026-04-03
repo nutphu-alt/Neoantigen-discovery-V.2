@@ -1,6 +1,0 @@
-name: star_env
-channels:
-  - bioconda
-  - conda-forge
-dependencies:
-  - star
