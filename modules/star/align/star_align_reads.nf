@@ -19,10 +19,7 @@ process star_align_reads {
     --genomeDir ${star_index_files} \ 
     --readFilesIn ${reads[0]} ${reads[1]} \ 
     --outSAMtype BAM SortedByCoordinate aligned_${sample_id}.bam\ 
-    --outFilterMismatchNmax 2 \
-    --outSAMmultNmax 1 \
-
-    samtools sort aligned_${sample_id}.bam -o aligned_${sample_id}_sorted.bam
+    ${params.star}
 
     samtools index aligned_${sample_id}_sorted.bam
     """

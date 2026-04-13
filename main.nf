@@ -27,10 +27,10 @@ include { remove_duplicate }        from './modules/picard/remove_duplicate.nf'
 include { BQSR }                    from './modules/base_score_recalibration/BQSR.nf'
 include { bcftools_mpileup }        from './modules/call_variants/bcftools/bcftools_mpileup.nf'
 include { gatk_mutect2 }             from './modules/call_variants/gatk/gatk_mutect2.nf'
-include { deepsomatics }            from './modules/call_variants/deepsomatics/deepsomatics.nf'
+include { deepsomatic }            from './modules/call_variants/deepsomatic/deepsomatic.nf'
 include { intersec_bcftools }       from './modules/intersect_vcf/intersect_bcftools/isec_bcftools.nf'
 include { intersec_gatk }           from './modules/intersect_vcf/intersect_gatk/isec_gatk.nf'
-include { intersec_deepsomatics }   from './modules/intersect_vcf/intersect_deepsomatics/isec_deepsomatics.nf'
+include { intersec_deepsomatic }   from './modules/intersect_vcf/intersect_deepsomatics/isec_deepsomatic.nf'
 include { intersec_all_tools }      from './modules/intersect_vcf/intersec_all_tools/isec_all.nf'
 include { annotation_VEP }          from './modules/ensembl-vep/annotation_VEP.nf'
 include { read_counts }             from './modules/featurecounts/read_counts.nf'
@@ -123,7 +123,7 @@ workflow {
     // Variant Calling
     bcftools = bcftools_mpileup(base_recal.out.recalibrated_bam, reference)
     gatk = gatk_mutect2(base_recal.out.recalibrated_bam, reference)
-    deepsomatics = deepsomatics(base_recal.out.recalibrated_bam, reference)
+    deepsomatic = deepsomatic_call(base_recal.out.recalibrated_bam, reference)
 
         // Separate bcftools and GATK VCFs by sample type
     collapse_bcftools_vcf_ch = bcftools.out.map { type, id, reads -> 
@@ -173,8 +173,8 @@ workflow {
 
     isec_bcftools = intersec_bcftools(tumor_bcftools_vcf_ch, normal_bcftools_vcf_ch)
     isec_gatk = intersec_gatk(tumor_gatk_vcf_ch, normal_gatk_vcf_ch)
-    isec_deepsomatics = intersec_deepsomatics(tumor_deepsomatics_vcf_ch, normal_deepsomatics_vcf_ch)
-    isec_all_tools_ch = Channel.mix(isec_bcftools.out, isec_gatk.out, isec_deepsomatics.out)
+    isec_deepsomatic = intersec_deepsomatics(tumor_deepsomatics_vcf_ch, normal_deepsomatics_vcf_ch)
+    isec_all_tools_ch = Channel.mix(isec_bcftools.out, isec_gatk.out, isec_deepsomatic.out)
     isec_all_tools = intersec_all_tools(isec_all_tools_ch)
 
 
@@ -198,4 +198,4 @@ workflow {
 
     // Predict Neoantigens
 
-    merge_annotation = merge_annotation(biomart.out, VEP.out)
+    merge = merge_annotation(biomart.out, VEP.out)

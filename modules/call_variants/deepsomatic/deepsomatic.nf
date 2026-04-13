@@ -1,11 +1,11 @@
-// Module to Call Variants Using deepsomatics
-process deepsomatics {
+// Module to Call Variants Using deepsomatic
+process deepsomatic_call {
 
     tag "${sample_type}_${sample_id}"
 
-    publishDir "${params.outdir}/variants/deepsomatics/${sample_type}", mode: 'copy'
+    publishDir "${params.outdir}/variants/deepsomatic/${sample_type}", mode: 'copy'
 
-    container 'google/deepsomatic:latest'
+    container 'google/deepsomatic:1.10.0'
 
     input:
     tuple val(sample_type), val(sample_id), path(recalibrated_bam)
@@ -17,14 +17,11 @@ process deepsomatics {
     script:
     """
     run_deepsomatic \
-    --model_type=WGS_TUMOR_ONLY \
+    ${params.deepsomatic} \
     --ref=${reference} \
     --reads_tumor=${recalibrated_bam} \
     --output_vcf=${sample_id}_deepsomatics_variants_snp.vcf.gz \
-    --sample_name_tumor="${sample_id}" \
-    --num_shards=$(nproc) \
-    --logging_dir=logs \
-    --intermediate_results_dir=intermediate_results
+    --sample_name_tumor="${sample_id}"
 
     bcftools index ${sample_id}_deepsomatics_variants_snp.vcf.gz
     """

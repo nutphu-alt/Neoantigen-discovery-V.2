@@ -7,7 +7,7 @@ process remove_duplicate {
     conda 'modules/picard/picard_env.yaml'
 
     input:
-    tuple val(sample_type), val(sample_id), path(bam)
+    tuple val(sample_type), val(sample_id), path(bam), path(bai)
 
     output:
     tuple val(sample_type), val(sample_id), file("${sample_id}_deduplicated.bam")

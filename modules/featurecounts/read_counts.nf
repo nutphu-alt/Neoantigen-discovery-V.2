@@ -15,7 +15,7 @@ process read_counts {
 
     script:
     """
-    featureCounts -p --countReadPairs -t exon -g gene_name \
+    featureCounts ${params.featcounts} \
     -a ${gtf} \
     -o ${sample_id}_read_counts.txt \
     ${sample_id[0]}

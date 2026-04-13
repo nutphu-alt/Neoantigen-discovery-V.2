@@ -17,15 +17,7 @@ process annotation_VEP {
     script:
     """
     vep \
-    --cache \
-    --dir_cache ${vep_cache} \
-    --species ${params.species} \
-    --tab \
-    --offline \
-    --force_overwrite \
-    --symbol \
-    --fork 4 \
-    --filter "Consequence is missense_variant" \
+    ${params.VEP} \
     -i ${vcf} \
     -o ${sample_id}_missense.txt
     """

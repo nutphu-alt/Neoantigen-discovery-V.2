@@ -7,7 +7,7 @@ process BQSR {
     conda 'modules/base_score_recalibration/gatk_env.yaml'
 
     input:
-    tuple val(sample_type), val(sample_id), path(bam)
+    tuple val(sample_type), val(sample_id), path(bam), path(bai)
     path(reference)
     path(known_snps)
     path(known_indels)
