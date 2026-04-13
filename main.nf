@@ -9,14 +9,14 @@ params.outdir                   = params.outdir ?: 'results'
 params.reference                = params.reference ?: 'data/reference/*.fa'
 params.adapters                 = params.adapters ?: 'data/adapters/*.fa'
 params.gtf                      = params.gtf ?: 'data/reference/*.gtf'
-params.star_index             = params.star_index ?: "results/reference_index/star/*"
+params.star_index               = params.star_index ?: "results/reference_index/star/*"
 params.bwa_index                = params.bwa_index ?: "results/reference_index/bwa/*"
 params.known_snps               = params.known_snps ?: 'data/reference/*.vcf.gz'
 params.known_indels             = params.known_indels ?: 'data/reference/*.vcf.gz'
 params.vep_cache                = params.vep_cache ?: 'data/vep_cache/*'
 
 
-// --- Improt modules ---
+// --- Import modules ---
 include { trim_reads }              from './modules/trimmomatic/trim_reads.nf'
 include { fastqc_trimmed_reads }    from './modules/fastqc_trimmed_reads/fastqc_trimmed_reads.nf'
 include { star_index }              from './modules/star/index_building/star_build_index.nf'
@@ -26,15 +26,17 @@ include { bwa_align_reads }         from './modules/bwa/align/bwa_align_reads.nf
 include { remove_duplicate }        from './modules/picard/remove_duplicate.nf'
 include { BQSR }                    from './modules/base_score_recalibration/BQSR.nf'
 include { bcftools_mpileup }        from './modules/call_variants/bcftools/bcftools_mpileup.nf'
-include { gatk_mutec2 }             from './modules/call_variants/gatk/gatk_mutec2.nf'
+include { gatk_mutect2 }             from './modules/call_variants/gatk/gatk_mutect2.nf'
 include { deepsomatics }            from './modules/call_variants/deepsomatics/deepsomatics.nf'
 include { intersec_bcftools }       from './modules/intersect_vcf/intersect_bcftools/isec_bcftools.nf'
 include { intersec_gatk }           from './modules/intersect_vcf/intersect_gatk/isec_gatk.nf'
 include { intersec_deepsomatics }   from './modules/intersect_vcf/intersect_deepsomatics/isec_deepsomatics.nf'
 include { intersec_all_tools }      from './modules/intersect_vcf/intersec_all_tools/isec_all.nf'
-include { annotation }              from './modules/ensembl-vep/annotation.nf'
+include { annotation_VEP }          from './modules/ensembl-vep/annotation_VEP.nf'
 include { read_counts }             from './modules/featurecounts/read_counts.nf'
-include ( tpm_calculation )        
+include { tpm_calculation }         from './modules/tpm_calculation/tpm_calculation.nf'
+include { annotation_biomart }      from './modules/biomart_annotation/annotation_biomart.nf'
+include { merge_annotation }        from './modules/merge_annotation/merge_annotation.nf'
 
 //include { predict_neoantigens }   from './modules/predict_neoantigens.nf'
 
@@ -49,7 +51,7 @@ workflow {
                         .map { sample_id, reads -> tuple('tumor_dna', sample_id, reads) }
     normal_dna_ch   = Channel.fromFilePairs(params.normal_dna_reads)
                         .map { sample_id, reads -> tuple('normal_dna', sample_id, reads) }
-    reads_ch        = Channel.concat(tumor_rna_ch, tumor_dna_ch, normal_dna_ch) // Combine all read channels
+    reads_ch        = Channel.contact(tumor_rna_ch, tumor_dna_ch, normal_dna_ch) // Combine all read channels
     reference       = file(params.reference)
     adapters        = file(params.adapters)
     gtf             = file(params.gtf)
@@ -72,9 +74,9 @@ workflow {
 
 
     // Separate trimmed reads by sample type
-    tumor_rna_trimmed_ch  = trim_reads.out.filter { type, id, reads -> type == 'tumor_rna' }
-    tumor_dna_trimmed_ch  = trim_reads.out.filter { type, id, reads -> type == 'tumor_dna' }
-    normal_dna_trimmed_ch = trim_reads.out.filter { type, id, reads -> type == 'normal_dna' }
+    tumor_rna_trimmed_ch  = trim.out.filter { type, id, reads -> type == 'tumor_rna' }
+    tumor_dna_trimmed_ch  = trim.out.filter { type, id, reads -> type == 'tumor_dna' }
+    normal_dna_trimmed_ch = trim.out.filter { type, id, reads -> type == 'normal_dna' }
 
 
     // Build or use existing STAR index
@@ -107,21 +109,21 @@ workflow {
 
 
     // Combine all bam files
-    all_bam_ch = Channel.concat(tumor_rna_aligned_ch, tumor_dna_aligned_ch, normal_dna_aligned_ch)
+    all_bam_ch = Channel.contact(tumor_rna_aligned_ch, tumor_dna_aligned_ch, normal_dna_aligned_ch)
 
 
     // Remove Duplicates
-    remove_duplicate = remove_duplicate(all_bam_ch)
+    dedup = remove_duplicate(all_bam_ch)
 
 
     // Base Quality Score Recalibration
-    BQSR = BQSR(remove_duplicate.out, reference, known_snps, known_indels)
+    base_recal = BQSR(dedup.out, reference, known_snps, known_indels)
 
 
     // Variant Calling
-    bcftools = bcftools_mpileup(BQSR.out.recalibrated_bam, reference)
-    gatk = gatk_mutec2(BQSR.out.recalibrated_bam, reference)
-    deepsomatics = deepsomatics(BQSR.out.recalibrated_bam, reference)
+    bcftools = bcftools_mpileup(base_recal.out.recalibrated_bam, reference)
+    gatk = gatk_mutect2(base_recal.out.recalibrated_bam, reference)
+    deepsomatics = deepsomatics(base_recal.out.recalibrated_bam, reference)
 
         // Separate bcftools and GATK VCFs by sample type
     collapse_bcftools_vcf_ch = bcftools.out.map { type, id, reads -> 
@@ -169,11 +171,11 @@ workflow {
     tumor_deepsomatics_vcf_ch  = collapse_deepsomatics_vcf_ch.filter { type, id, reads -> type == 'tumor' }
     normal_deepsomatics_vcf_ch = collapse_deepsomatics_vcf_ch.filter { type, id, reads -> type == 'normal' }
 
-    intersec_bcftools = intersec_bcftools(tumor_bcftools_vcf_ch, normal_bcftools_vcf_ch)
-    intersec_gatk = intersec_gatk(tumor_gatk_vcf_ch, normal_gatk_vcf_ch)
-    intersec_deepsomatics = intersec_deepsomatics(tumor_deepsomatics_vcf_ch, normal_deepsomatics_vcf_ch)
-    intersec_all_tools_ch = Channel.mix(intersec_bcftools.out, intersec_gatk.out, intersec_deepsomatics.out)
-    intersec_all_tools = intersec_all_tools(intersec_all_tools_ch)
+    isec_bcftools = intersec_bcftools(tumor_bcftools_vcf_ch, normal_bcftools_vcf_ch)
+    isec_gatk = intersec_gatk(tumor_gatk_vcf_ch, normal_gatk_vcf_ch)
+    isec_deepsomatics = intersec_deepsomatics(tumor_deepsomatics_vcf_ch, normal_deepsomatics_vcf_ch)
+    isec_all_tools_ch = Channel.mix(isec_bcftools.out, isec_gatk.out, isec_deepsomatics.out)
+    isec_all_tools = intersec_all_tools(isec_all_tools_ch)
 
 
     // Annotation
@@ -185,15 +187,15 @@ workflow {
         vep_cache = file(params.vep_cache)
     }
 
-    annotation_VEP = annotation(intersec_all_tools.out, vep_cache)
+    VEP = annotation_VEP(isec_all_tools.out, vep_cache)
 
     // Calculate read counts
     featurecounts = read_counts(tumor_rna_aligned_ch, gtf)
 
-    tpm_calculation = tpm_calculation(featurecounts.out)
+    tpm = tpm_calculation(featurecounts.out)
 
-    annotation_biomart = annotation_biomart(tpm_calculation.out)
+    biomart = annotation_biomart(tpm.out)
 
     // Predict Neoantigens
 
-    merge_annotation = merge_annotation(annotation_biomart.out, annotation_VEP.out)
+    merge_annotation = merge_annotation(biomart.out, VEP.out)
