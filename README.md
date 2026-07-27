@@ -16,3 +16,12 @@ The steps, used to indentify neoantigen, are listed below.
 <p align="center">
 <img width="300" height="750" alt="image" src="https://github.com/user-attachments/assets/4f722fd9-f7e6-497f-9369-c0f501d72936" />
 </p>
+
+## Running
+``` 
+nextflow run main.nf --mode n
+```
+While <br>
+n = 1 &emsp; perform FastQC on raw reads <br>
+n = 2 &emsp; perform Trim reads and FastQC <br>
+n = 3 &emsp; perform Neoantigen analysis (repeat Trim reads again for now)
