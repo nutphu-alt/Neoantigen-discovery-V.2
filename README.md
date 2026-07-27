@@ -29,4 +29,4 @@ nextflow run main.nf --mode n
 While <br>
 n = 1 &emsp; perform FastQC on raw reads <br>
 n = 2 &emsp; perform Trim reads and FastQC <br>
-n = 3 &emsp; perform Neoantigen analysis (repeat Trim reads again for now)
+n = 3 &emsp; perform Neoantigen analysis <br>
