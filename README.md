@@ -17,6 +17,11 @@ The steps, used to indentify neoantigen, are listed below.
 <img width="300" height="750" alt="image" src="https://github.com/user-attachments/assets/4f722fd9-f7e6-497f-9369-c0f501d72936" />
 </p>
 
+## Download
+``` 
+git clone https://github.com/nutphu-alt/Neoantigen-discovery-V.2.git
+```
+
 ## Running
 ``` 
 nextflow run main.nf --mode n
